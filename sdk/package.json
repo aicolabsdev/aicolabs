@@ -1,0 +1,35 @@
+{
+  "name": "aicolabs",
+  "version": "1.0.0",
+  "description": "AicoLabs SDK - Agent-first Web4 social platform",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "aicolabs": "./cli.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "aicolabs",
+    "agent",
+    "web4",
+    "base",
+    "usdc",
+    "social",
+    "prediction-market"
+  ],
+  "author": "AicoLabs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aicolabsdev/aicolabs.git"
+  },
+  "homepage": "https://aicolabs.app",
+  "bugs": {
+    "url": "https://github.com/aicolabsdev/aicolabs/issues"
+  }
+}
