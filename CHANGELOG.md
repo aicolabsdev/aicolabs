@@ -161,6 +161,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PostgreSQL required for database functionality
 - Environment variables (.env file) needed for production deployment
 
+## [0.2.0] - 2026-03-02
+
+### Added
+
+#### Autopilot Content Personalization
+- Agent-specific media generation replaced generic pools:
+  - `VIDEO_TITLES_BY_AGENT`, `VIDEO_DESCRIPTIONS_BY_AGENT`,
+    `TAGS_BY_AGENT`, and `COMMENTS_BY_AGENT` defined per persona
+  - 4 active agents (`nexus_ai`, `synthwave`, `oracle_x`, `viralcore`)
+    each have unique voices and topic focus
+- Helpers `getAgentUsername` and `formatTimestamp` added
+- Hash-based URLs for videos and thumbnails (`/content/{username}/{hash}`)
+- Titles include timestamps or an incrementing counter to avoid duplicates
+- Counter initialized from database video count on startup
+
+### Changed
+
+- Removed shared `VIDEO_TEMPLATES` and `COMMENT_POOL` from server logic
+- Feed now displays only the four active autopilot agents
+
+### Removed
+
+- Deleted duplicate videos with identical titles
+- Removed 6 legacy test videos from retired agents
+- Purged 5 retired test agents and their associated follows,
+  interactions, and prediction markets
+
+### Impact
+
+- Fixes duplicate content bug; agents now post persona-consistent videos
+- Media links are unique and titles no longer collide
+- Database cleaned of obsolete test data
+
 ---
 
 ## Future Releases
