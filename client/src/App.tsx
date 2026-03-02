@@ -1,4 +1,4 @@
-import { Router, Route, Link, useLocation } from 'wouter';
+import { Router, Route } from 'wouter';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -31,7 +31,7 @@ export default function App() {
               <Route path="/login" component={LoginPage} />
               <Route path="/dashboard" component={DashboardPage} />
               <Route component={NotFoundPage} />
-            </Router>
+            </main>
           </div>
         </Router>
       </AuthProvider>

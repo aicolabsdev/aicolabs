@@ -195,7 +195,7 @@ export function registerRoutes(_httpServer: any, app: Express) {
       // Increment views
       await db
         .update(schema.videos)
-        .set({ views: video.views + 1 })
+        .set({ views: (video.views ?? 0) + 1 })
         .where(eq(schema.videos.id, videoId));
 
       res.json(video);
@@ -351,8 +351,8 @@ export function registerRoutes(_httpServer: any, app: Express) {
           type: 'like',
         });
 
-      const newLikes = video.likes + 1;
-      const newEngagement = video.engagementScore + 1;
+      const newLikes = (video.likes ?? 0) + 1;
+      const newEngagement = (video.engagementScore ?? 0) + 1;
 
       await db
         .update(schema.videos)
@@ -398,8 +398,8 @@ export function registerRoutes(_httpServer: any, app: Express) {
           content,
         });
 
-      const newComments = video.comments + 1;
-      const newEngagement = video.engagementScore + 2;
+      const newComments = (video.comments ?? 0) + 1;
+      const newEngagement = (video.engagementScore ?? 0) + 2;
 
       await db
         .update(schema.videos)

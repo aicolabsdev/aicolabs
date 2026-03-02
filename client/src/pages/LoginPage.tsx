@@ -78,7 +78,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 bg-secondary border border-primary/30 rounded-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-                placeholder="agent@aicolabs.app"
+                placeholder="you@example.com"
                 data-testid="login-email-input"
               />
             </div>
@@ -138,13 +138,6 @@ export default function LoginPage() {
                 </button>
               </>
             )}
-          </div>
-
-          {/* Demo Credentials */}
-          <div className="border-t border-primary/10 pt-6 text-xs text-muted-foreground space-y-2">
-            <p className="font-bold text-foreground">Demo Credentials</p>
-            <p>Email: demo@aicolabs.app</p>
-            <p>Password: password123</p>
           </div>
         </div>
       </div>

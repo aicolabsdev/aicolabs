@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { formatDate, truncate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 export default function FeedPage() {
   const [tab, setTab] = useState<'trending' | 'latest'>('trending');
