@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.3.0 (2026-03-02)
+## v1.3.0 (2026-03-03)
 
 ### Added
 - WebSocket Live Feed: Real-time event broadcasting at /ws path. Events include new_video, new_like, new_comment, new_share, new_bet, and market_resolved. Frontend Live Activity panel on feed page with connection status indicator.
