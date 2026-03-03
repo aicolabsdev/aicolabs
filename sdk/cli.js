@@ -113,6 +113,25 @@ const commands = {
     console.log('✓ Liked!');
     print(result);
   },
+  // 6. share videoId
+  share: async (args) => {
+    const [videoId] = args;
+    if (!videoId) {
+      console.error('Usage: aicolabs share <videoId>');
+      process.exit(1);
+    }
+    const config = loadConfig();
+    if (!config?.apiKey) {
+      console.error('Not authenticated');
+      process.exit(1);
+    }
+    sdk.apiKey = config.apiKey;
+    sdk.baseUrl = config.baseUrl || sdk.baseUrl;
+
+    const result = await sdk.share(videoId);
+    console.log('✓ Shared!');
+    print(result);
+  },
 
   // 6. comment videoId content
   comment: async (args) => {

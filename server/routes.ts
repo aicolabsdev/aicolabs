@@ -18,6 +18,46 @@ function stripApiKey(agent: any) {
   return rest;
 }
 
+// Simple rate limiter for write operations (POST requests). Tracks per-IP counts.
+// This is intentionally lightweight; it resets every minute and allows a modest
+// number of writes. In a real production system you'd replace this with a
+// robust redis-backed limiter.
+const writeCounts: Record<string, { count: number; reset: number }> = {};
+function writeLimiter(req: AuthenticatedRequest, res: Response, next: Function) {
+  const ip = req.ip || (req.headers['x-forwarded-for'] as string) || 'unknown';
+  const now = Date.now();
+  let record = writeCounts[ip];
+  if (!record || now > record.reset) {
+    record = { count: 0, reset: now + 60_000 };
+  }
+  record.count += 1;
+  writeCounts[ip] = record;
+
+  // throttle at 50 writes per minute per IP
+  if (record.count > 50) {
+    return res.status(429).json({ error: 'Too many write requests' });
+  }
+  next();
+}
+
+// Broadcast helper stub. If a WebSocket server is attached to the httpServer we
+// attempt to send the event to all connected clients. Having this here makes it
+// easy to emit events without knowing the implementation details of the ws layer.
+function broadcast(event: any) {
+  // The httpServer instance is available via closure when registerRoutes is
+  // called; we simply attach a `wss` property if a WS server exists. For now
+  // this is a no‑op if nobody has wired up sockets.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const httpServer: any = (global as any).__httpServer;
+  if (httpServer && httpServer.wss && httpServer.wss.clients) {
+    httpServer.wss.clients.forEach((client: any) => {
+      if (client.readyState === 1) {
+        client.send(JSON.stringify(event));
+      }
+    });
+  }
+}
+
 // Middleware: API Key Authentication
 async function authenticateAgent(req: AuthenticatedRequest, res: Response, next: Function) {
   const authHeader = req.headers.authorization;
@@ -45,6 +85,9 @@ async function authenticateAgent(req: AuthenticatedRequest, res: Response, next:
 }
 
 export function registerRoutes(_httpServer: any, app: Express) {
+  // expose http server to broadcast helper (see above)
+  (global as any).__httpServer = _httpServer;
+
   // Public endpoints
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
@@ -282,7 +325,7 @@ export function registerRoutes(_httpServer: any, app: Express) {
   });
 
   // Agent Auth: Post video
-  app.post('/api/videos', authenticateAgent, async (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/videos', authenticateAgent, writeLimiter, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { title, description, videoUrl, thumbnailUrl, duration, tags } = req.body;
       const agent = req.agent!;
@@ -311,7 +354,7 @@ export function registerRoutes(_httpServer: any, app: Express) {
   });
 
   // Agent Auth: Like video
-  app.post('/api/videos/:id/like', authenticateAgent, async (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/videos/:id/like', authenticateAgent, writeLimiter, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const videoId = parseInt(req.params.id);
       const agent = req.agent!;
@@ -369,7 +412,7 @@ export function registerRoutes(_httpServer: any, app: Express) {
   });
 
   // Agent Auth: Comment on video
-  app.post('/api/videos/:id/comment', authenticateAgent, async (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/videos/:id/comment', authenticateAgent, writeLimiter, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const videoId = parseInt(req.params.id);
       const agent = req.agent!;
@@ -415,8 +458,69 @@ export function registerRoutes(_httpServer: any, app: Express) {
     }
   });
 
+  // Agent Auth: Share video
+  app.post('/api/videos/:id/share', authenticateAgent, writeLimiter, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const agent = req.agent!;
+
+      const [video] = await db
+        .select()
+        .from(schema.videos)
+        .where(eq(schema.videos.id, videoId))
+        .limit(1);
+
+      if (!video) {
+        return res.status(404).json({ error: 'Video not found' });
+      }
+
+      // Prevent duplicate shares
+      const existing = await db
+        .select()
+        .from(schema.interactions)
+        .where(
+          and(
+            eq(schema.interactions.agentId, agent.id),
+            eq(schema.interactions.videoId, videoId),
+            eq(schema.interactions.type, 'share')
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: 'Already shared' });
+      }
+
+      await db
+        .insert(schema.interactions)
+        .values({
+          agentId: agent.id,
+          videoId,
+          type: 'share',
+        });
+
+      const newShares = (video.shares ?? 0) + 1;
+      const newEngagement = (video.engagementScore ?? 0) + 3;
+
+      await db
+        .update(schema.videos)
+        .set({
+          shares: newShares,
+          engagementScore: newEngagement,
+        })
+        .where(eq(schema.videos.id, videoId));
+
+      // broadcast event if websocket server is available
+      broadcast({ type: 'new_share', data: { videoId, agentId: agent.id } });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Agent Auth: Follow agent
-  app.post('/api/agents/:username/follow', authenticateAgent, async (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/agents/:username/follow', authenticateAgent, writeLimiter, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const agent = req.agent!;
       const [targetAgent] = await db
@@ -462,7 +566,7 @@ export function registerRoutes(_httpServer: any, app: Express) {
   });
 
   // Agent Auth: Place bet
-  app.post('/api/predictions/:id/bet', authenticateAgent, async (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/predictions/:id/bet', authenticateAgent, writeLimiter, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const marketId = parseInt(req.params.id);
       const agent = req.agent!;

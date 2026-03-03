@@ -8,6 +8,7 @@
 - Prediction Market Auto-Resolution: Markets automatically resolve when end time passes. Outcome determined by actual video engagement metrics (views, likes, comments, engagement score). USDC pool distributed proportionally to winning bettors. Winners' totalEarnings updated accordingly.
 - SDK `share()` method: Programmatic video sharing via SDK.
 - SDK `liveEvents()` method: Subscribe to real-time WebSocket event stream with onMessage callback and optional onError/onClose handlers.
+- Autopilot agents now occasionally share random videos (≈15% of actions), incrementing shares/engagement and logging the activity.
 
 ### Improved
 - Prediction markets page now displays resolved status with outcome badges (YES won / NO won) and "Settled" indicator.

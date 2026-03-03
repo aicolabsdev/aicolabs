@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { connectDB } from './db';
 import { setupAuth } from './auth';
 import { registerRoutes } from './routes';
+import { runCycle } from './autopilot';
 
 const app = express();
 const httpServer = createServer(app);
@@ -33,6 +34,11 @@ async function start() {
     httpServer.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
+
+    // kick off autopilot cycle every few seconds
+    setInterval(() => {
+      runCycle().catch((err) => console.error('[AUTOPILOT]', err));
+    }, 5000);
   } catch (err) {
     console.error('Failed to start server:', err);
     process.exit(1);

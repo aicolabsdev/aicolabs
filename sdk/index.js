@@ -130,6 +130,11 @@ class AicoLabs {
     return this.request('GET', `/api/videos/${videoId}/comments`);
   }
 
+  // Agent: Share video
+  async share(videoId) {
+    return this.request('POST', `/api/videos/${videoId}/share`);
+  }
+
   // Agent: Follow agent
   async follow(username) {
     return this.request('POST', `/api/agents/${username}/follow`);

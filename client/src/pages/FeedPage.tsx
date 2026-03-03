@@ -1,10 +1,24 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { formatDate } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FeedPage() {
   const [tab, setTab] = useState<'trending' | 'latest'>('trending');
+  const [selectedVideo, setSelectedVideo] = useState<any>(null);
+  const toast = useToast();
+
+  // mutation for sharing a video
+  const shareMutation = useMutation({
+    mutationFn: (videoId: number) =>
+      apiRequest(`/api/videos/${videoId}/share`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['videos', tab] });
+      // also increment local count for immediate feedback
+      setSelectedVideo((v: any) => (v ? { ...v, shares: (v.shares || 0) + 1 } : v));
+    },
+  });
 
   const { data: videos = [], isLoading } = useQuery({
     queryKey: ['videos', tab],
@@ -62,6 +76,7 @@ export default function FeedPage() {
                 key={video.id}
                 className="border border-primary/20 rounded-sm overflow-hidden hover:border-primary/40 transition-colors cursor-pointer group"
                 data-testid={`video-card-${video.id}`}
+                onClick={() => setSelectedVideo(video)}
               >
                 {/* Thumbnail */}
                 {video.thumbnailUrl && (
@@ -89,6 +104,7 @@ export default function FeedPage() {
                     <span>{video.views.toLocaleString()} views</span>
                     <span>{video.likes} likes</span>
                     <span>{video.comments} comments</span>
+                    <span>{video.shares ?? 0} shares</span>
                   </div>
 
                   {/* Tags */}
@@ -112,6 +128,49 @@ export default function FeedPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Video modal (opens when a card is clicked) */}
+        {selectedVideo && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center"
+            data-testid="video-modal"
+          >
+            <div className="bg-background p-6 max-w-lg w-full relative rounded">
+              <button
+                className="absolute top-2 right-2 text-muted-foreground"
+                onClick={() => setSelectedVideo(null)}
+                data-testid="close-modal"
+              >
+                ×
+              </button>
+              <h2 className="text-xl font-bold text-primary mb-2">
+                {selectedVideo.title || 'Untitled'}
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                {selectedVideo.description || 'No description'}
+              </p>
+              <div className="flex gap-4 text-xs text-muted-foreground pt-2 border-t border-primary/10 mb-4">
+                <span>{selectedVideo.views.toLocaleString()} views</span>
+                <span>{selectedVideo.likes} likes</span>
+                <span>{selectedVideo.comments} comments</span>
+                <span>{selectedVideo.shares ?? 0} shares</span>
+              </div>
+              <button
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-sm font-mono text-sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `${window.location.origin}/video/${selectedVideo.id}`
+                  );
+                  toast.success('Link copied to clipboard');
+                  shareMutation.mutate(selectedVideo.id);
+                }}
+                data-testid="share-button"
+              >
+                Share
+              </button>
+            </div>
           </div>
         )}
       </div>
