@@ -1,11 +1,108 @@
 import { db } from './db';
 import * as schema from '../shared/schema';
-import { eq, not } from 'drizzle-orm';
+import { eq, not, and, lt } from 'drizzle-orm';
+
+// helper to broadcast websocket events (same logic as routes.ts)
+function broadcast(event: any) {
+  const httpServer: any = (global as any).__httpServer;
+  if (httpServer && httpServer.wss && httpServer.wss.clients) {
+    httpServer.wss.clients.forEach((client: any) => {
+      if (client.readyState === 1) {
+        client.send(JSON.stringify(event));
+      }
+    });
+  }
+}
 
 // Utility to pick a random element from an array
 function randomElement<T>(arr: T[]): T | null {
   if (!arr || arr.length === 0) return null;
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Resolve prediction markets whose end time has passed and are still open
+export async function resolveExpiredMarkets() {
+  try {
+    const now = new Date();
+    const expired = await db
+      .select()
+      .from(schema.predictionMarkets)
+      .where(
+        and(
+          lt(schema.predictionMarkets.endTime, now),
+          eq(schema.predictionMarkets.resolved, false)
+        )
+      );
+
+    for (const market of expired) {
+      // fetch associated video for outcome check
+      const [video] = await db
+        .select()
+        .from(schema.videos)
+        .where(eq(schema.videos.id, market.videoId))
+        .limit(1);
+
+      // parse threshold out of question (e.g. "Will this video get 10 likes?")
+      let threshold = 0;
+      const match = /([0-9]+)\s+likes?/i.exec(market.question);
+      if (match) {
+        threshold = parseInt(match[1], 10);
+      }
+
+      const outcome = video ? ((video.likes ?? 0) >= threshold) : false;
+
+      // mark market resolved
+      await db
+        .update(schema.predictionMarkets)
+        .set({ resolved: true, outcome })
+        .where(eq(schema.predictionMarkets.id, market.id));
+
+      // collect all bets
+      const bets = await db
+        .select()
+        .from(schema.marketBets)
+        .where(eq(schema.marketBets.marketId, market.id));
+
+      const totalPool = bets.reduce((sum, b) => sum + b.amount, 0);
+      const winningBets = bets.filter((b) => b.prediction === outcome);
+      const totalWinning = winningBets.reduce((sum, b) => sum + b.amount, 0);
+
+      let winnersCount = winningBets.length;
+
+      if (totalWinning > 0) {
+        for (const b of winningBets) {
+          const payout = Math.floor((b.amount / totalWinning) * totalPool);
+          // update agent earnings
+          const [agent] = await db
+            .select()
+            .from(schema.agents)
+            .where(eq(schema.agents.id, b.agentId))
+            .limit(1);
+          if (agent) {
+            await db
+              .update(schema.agents)
+              .set({ totalEarnings: (agent.totalEarnings ?? 0) + payout })
+              .where(eq(schema.agents.id, agent.id));
+          }
+        }
+      } else {
+        winnersCount = 0;
+      }
+
+      // broadcast resolution event
+      broadcast({ type: 'market_resolved', data: { marketId: market.id, outcome, totalPool } });
+
+      console.log(
+        `[AUTOPILOT] Market #${market.id} resolved: outcome=${
+          outcome ? 'YES' : 'NO'
+        }, pool=$${(totalPool / 100).toFixed(2)} distributed to ${winnersCount} winner$${
+          winnersCount === 1 ? '' : 's'
+        }`
+      );
+    }
+  } catch (err: any) {
+    console.error('[AUTOPILOT] resolveExpiredMarkets error', err);
+  }
 }
 
 // Action: share a random video by a random agent (not their own video)
@@ -46,6 +143,9 @@ export async function shareVideo() {
 
 // Primary cycle runner; choose an action based on weighted probabilities.
 export async function runCycle() {
+  // resolve any markets before taking other actions
+  await resolveExpiredMarkets();
+
   // other actions could be added here, we keep it simple for now
   const actions: Array<{ fn: () => Promise<void>; weight: number }> = [
     { fn: shareVideo, weight: 0.15 },

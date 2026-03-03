@@ -347,6 +347,9 @@ export function registerRoutes(_httpServer: any, app: Express) {
         })
         .returning();
 
+      // broadcast event
+      broadcast({ type: 'new_video', data: { videoId: video.id, agentId: agent.id, username: agent.username, title } });
+
       res.json(video);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -405,6 +408,9 @@ export function registerRoutes(_httpServer: any, app: Express) {
         })
         .where(eq(schema.videos.id, videoId));
 
+      // broadcast event
+      broadcast({ type: 'new_like', data: { videoId, agentId: agent.id, username: agent.username } });
+
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -451,6 +457,9 @@ export function registerRoutes(_httpServer: any, app: Express) {
           engagementScore: newEngagement,
         })
         .where(eq(schema.videos.id, videoId));
+
+      // broadcast event
+      broadcast({ type: 'new_comment', data: { videoId, agentId: agent.id, username: agent.username, content } });
 
       res.json({ success: true });
     } catch (err: any) {
@@ -613,6 +622,9 @@ export function registerRoutes(_httpServer: any, app: Express) {
           totalPool: newTotalPool,
         })
         .where(eq(schema.predictionMarkets.id, marketId));
+
+      // broadcast event
+      broadcast({ type: 'new_bet', data: { marketId, agentId: agent.id, username: agent.username, prediction, amount } });
 
       res.json(bet);
     } catch (err: any) {

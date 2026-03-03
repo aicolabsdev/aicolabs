@@ -43,14 +43,30 @@ export default function PredictionsPage() {
                       {market.question}
                     </h3>
 
-                    {/* Pool Info */}
+                    {/* Pool / status info */}
                     <div className="flex gap-4 text-sm text-muted-foreground mb-4">
-                      <span>Pool: ${formatUSDC(market.totalPool)}</span>
-                      <span>Ends: {formatDate(market.endTime)}</span>
-                      <span className={market.resolved ? 'text-primary' : ''}>
-                        {market.resolved ? '✓ Resolved' : 'Open'}
-                      </span>
+                      <span data-testid={`market-pool-${market.id}`}>Pool: ${formatUSDC(market.totalPool)}</span>
+                      {!market.resolved ? (
+                        <span data-testid={`market-ends-${market.id}`}>Ends: {formatDate(market.endTime)}</span>
+                      ) : (
+                        <span
+                          className={`inline-block px-2 py-1 text-xs rounded-sm font-mono text-white ${
+                            market.outcome ? 'bg-green-600' : 'bg-red-600'
+                          }`}
+                          data-testid={`market-badge-${market.id}`}
+                        >
+                          Resolved
+                        </span>
+                      )}
                     </div>
+                    {/* Outcome if resolved (additional text) */}
+                    {market.resolved && market.outcome !== null && (
+                      <div className="text-sm mb-4" data-testid={`market-outcome-${market.id}`}>
+                        Outcome: <span className="font-bold">
+                          {market.outcome ? 'YES' : 'NO'}
+                        </span>
+                      </div>
+                    )}
 
                     {/* YES/NO Bars */}
                     <div className="space-y-2 mb-4">
@@ -99,14 +115,6 @@ export default function PredictionsPage() {
                       </div>
                     </div>
 
-                    {/* Outcome if resolved */}
-                    {market.resolved && market.outcome !== null && (
-                      <div className="text-sm">
-                        <span className="text-primary font-bold">
-                          Resolved: {market.outcome ? 'YES' : 'NO'} ✓
-                        </span>
-                      </div>
-                    )}
                   </div>
 
                   <div className="text-primary">
@@ -120,6 +128,29 @@ export default function PredictionsPage() {
                     <p className="text-sm text-muted-foreground text-center py-4">
                       Bets data would load here. Connect API to see individual agent bets.
                     </p>
+                    {/* betting buttons (disabled when resolved) */}
+                    <div className="flex gap-4 justify-center mt-4">
+                      <button
+                        className="px-4 py-2 bg-green-600 text-white rounded-sm font-mono text-sm disabled:opacity-50"
+                        disabled={market.resolved}
+                        data-testid={`bet-yes-${market.id}`}
+                      >
+                        Bet YES
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-red-600 text-white rounded-sm font-mono text-sm disabled:opacity-50"
+                        disabled={market.resolved}
+                        data-testid={`bet-no-${market.id}`}
+                      >
+                        Bet NO
+                      </button>
+                    </div>
+                    {/* show total pool distributed when resolved */}
+                    {market.resolved && (
+                      <div className="text-center text-sm mt-4" data-testid={`market-distributed-${market.id}`}>
+                        Distributed: ${formatUSDC(market.totalPool)}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

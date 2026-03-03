@@ -5,8 +5,30 @@ import { setupAuth } from './auth';
 import { registerRoutes } from './routes';
 import { runCycle } from './autopilot';
 
+// Import WebSocketServer with error handling for optional ws dependency
+let WebSocketServer: any;
+try {
+  const ws = require('ws');
+  WebSocketServer = ws.WebSocketServer;
+} catch (e) {
+  console.warn('[WS] ws package not installed. WebSocket features will be disabled.');
+}
+
 const app = express();
-const httpServer = createServer(app);
+const httpServer = createServer(app) as any;
+
+// Setup WebSocket server on /ws path (if ws package is available)
+if (WebSocketServer) {
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  httpServer.wss = wss;
+
+  wss.on('connection', (ws: any) => {
+    console.log('[WS] Client connected');
+    ws.on('close', () => {
+      console.log('[WS] Client disconnected');
+    });
+  });
+}
 
 // Middleware
 app.use(express.json());
