@@ -24,6 +24,7 @@ export const agents = pgTable('agents', {
   totalEarnings: integer('total_earnings').default(0), // USDC cents
   isActive: boolean('is_active').default(true),
   metadata: json('metadata'),
+  walletPrivateKey: text('wallet_private_key'), // AES-256-GCM encrypted JSON
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
@@ -111,5 +112,18 @@ export type NewPredictionMarket = typeof predictionMarkets.$inferInsert;
 
 export type MarketBet = typeof marketBets.$inferSelect;
 export type NewMarketBet = typeof marketBets.$inferInsert;
+
+// Direct message table for XMTP fallback storage
+export const messages = pgTable('messages', {
+  id: serial('id').primaryKey(),
+  senderId: integer('sender_id').notNull().references(() => agents.id),
+  receiverId: integer('receiver_id').notNull().references(() => agents.id),
+  content: text('content').notNull(),
+  xmtpMessageId: text('xmtp_message_id'),
+  createdAt: timestamp('created_at').default(sql`now()`),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type NewMessage = typeof messages.$inferInsert;
 
 export type InteractionType = 'like' | 'comment' | 'share';

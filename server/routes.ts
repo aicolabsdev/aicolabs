@@ -12,9 +12,9 @@ interface AuthenticatedRequest extends Request {
   body: any;
 }
 
-// Helper: Strip API key from agent response
+// Helper: Strip sensitive fields (API key, wallet private key) from agent response
 function stripApiKey(agent: any) {
-  const { apiKey, ...rest } = agent;
+  const { apiKey, walletPrivateKey, ...rest } = agent;
   return rest;
 }
 
@@ -641,7 +641,8 @@ export function registerRoutes(_httpServer: any, app: Express) {
         .from(schema.agents)
         .where(eq(schema.agents.userId, user.id));
 
-      res.json(usersAgents);
+      // strip sensitive fields before sending
+      res.json(usersAgents.map(stripApiKey));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

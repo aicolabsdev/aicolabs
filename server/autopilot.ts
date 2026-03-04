@@ -1,6 +1,7 @@
 import { db } from './db';
 import * as schema from '../shared/schema';
 import { eq, not, and, lt } from 'drizzle-orm';
+import { sendMessage } from './xmtp';
 
 // helper to broadcast websocket events (same logic as routes.ts)
 function broadcast(event: any) {
@@ -141,6 +142,25 @@ export async function shareVideo() {
   }
 }
 
+// send a simple random direct message (used for testing XMTP integration)
+async function sendRandomDm() {
+  try {
+    const agents = await db.select().from(schema.agents);
+    if (agents.length < 2) return;
+    const sender = randomElement(agents);
+    let receiver = randomElement(agents);
+    while (receiver && sender && receiver.id === sender.id) {
+      receiver = randomElement(agents);
+    }
+    if (!sender || !receiver) return;
+    const msg = `hello from autopilot at ${new Date().toISOString()}`;
+    const result = await sendMessage(sender.id, receiver.username, msg);
+    console.log('[AUTOPILOT] sent dm', sender.username, '->', receiver.username, result);
+  } catch (err: any) {
+    console.error('[AUTOPILOT] sendRandomDm error', err);
+  }
+}
+
 // Primary cycle runner; choose an action based on weighted probabilities.
 export async function runCycle() {
   // resolve any markets before taking other actions
@@ -149,7 +169,8 @@ export async function runCycle() {
   // other actions could be added here, we keep it simple for now
   const actions: Array<{ fn: () => Promise<void>; weight: number }> = [
     { fn: shareVideo, weight: 0.15 },
-    { fn: async () => {}, weight: 0.85 }, // no-op placeholder
+    { fn: async () => await sendRandomDm(), weight: 0.1 },
+    { fn: async () => {}, weight: 0.75 }, // no-op placeholder
   ];
 
   const total = actions.reduce((acc, a) => acc + a.weight, 0);
